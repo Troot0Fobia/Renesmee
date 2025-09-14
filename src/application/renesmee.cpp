@@ -12,7 +12,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
-#include "../Network/network.hpp"
+#include "../network/network.hpp"
 
 Renesmee::Renesmee(
     std::string inputFile,
@@ -244,12 +244,12 @@ void Renesmee::brute_wrapper(std::vector<InetAddr>::iterator begin_addr, std::ve
     for (; begin_addr != end_addr; ++begin_addr) {
         // Temp solution
         if (begin_addr->port == 0) {
-            std::cout << "Address does not have port. Skip for now..." << std::endl;
+            std::cout << "Address does not have specified port. Skip for now..." << std::endl;
             continue;
         }
 
         if (!network::checkHikvision(*begin_addr)) {
-            std::cout << "Address does not correspond to hikvision" << std::endl;
+            std::cout << "Address [" << begin_addr->ip << ':' << begin_addr->port << "] does not correspond to hikvision" << std::endl;
             continue;
         }
 

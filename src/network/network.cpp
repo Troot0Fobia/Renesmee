@@ -38,8 +38,6 @@ namespace network {
             cpr::Timeout({10000})
         );
 
-        // std::cout << response.text << std::endl;
-
         if (response.status_code == 200 &&
             response.text.find("userCheck") != std::string::npos &&
             response.text.find("statusValue") != std::string::npos &&
@@ -81,18 +79,9 @@ namespace network {
             cpr::Timeout({5000})
         );
 
-        // std::cout << "Favicon response:\n" << r2.text << std::endl;
-        // auto sum = md5(r2.text);
-        // std::cout << "MD5 sum of favicon:\n" << sum << std::endl;
         if (md5(r.text) == "89b932fcc47cf4ca3faadb0cfdef89cf")
             return true;
 
         return false;
     }
 }
-
-// 78.154.163.35,80,uniview,admin,21091952,uniview-disclosure
-// 91.233.183.157,85,hikvision,admin,Bachuvse2020,cve-2017-7921
-// 109.207.194.227,80,hikvision,admin,Autism321,cve-2017-7921
-// 178.158.212.135,81,hikvision,admin,12345admin,hikvision-weak-password
-// 93.127.121.7,8080,dahua,admin,nou3T77a,cve-2021-33045

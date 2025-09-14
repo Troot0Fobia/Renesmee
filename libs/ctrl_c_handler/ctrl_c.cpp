@@ -49,7 +49,7 @@ SOFTWARE.
 #include <signal.h>
 #endif
 
-#include "ctrl-c.h"
+#include "ctrl_c.h"
 
 namespace CtrlCLibrary {
 

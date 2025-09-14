@@ -1,5 +1,5 @@
-#include "Console/console.hpp"
-#include "Renesmee/renesmee.hpp"
+#include "console/console.hpp"
+#include "application/renesmee.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>

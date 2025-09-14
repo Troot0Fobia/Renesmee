@@ -4,7 +4,7 @@
 #define NETWORK_H
 
 #include <string>
-#include "../Renesmee/renesmee.hpp"
+#include "../application/renesmee.hpp"
 
 namespace network {
     bool sendRequest(

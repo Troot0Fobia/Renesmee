@@ -14,6 +14,6 @@ typedef struct {
     int threads;
 } ConsoleArgs;
 
-int parse_arguments(int argc, char *argv[], ConsoleArgs *);
+int parse_arguments(int argc, char *argv[], ConsoleArgs *args);
 
 #endif // CONSOLE_H
