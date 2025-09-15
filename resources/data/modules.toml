@@ -1,0 +1,9 @@
+[[modules]]
+name = "hikvision"
+path = './modules/hikvision'
+version = "1.2.3"
+
+[[modules]]
+name = "dahua"
+path = './modules/dahua'
+version = "4.5.6"
