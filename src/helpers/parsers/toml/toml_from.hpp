@@ -1,8 +1,8 @@
 #pragma once
 
-#include <format>
 #include "plugin_model.hpp"
 #include "toml11/find.hpp"
+#include "toml11/types.hpp"
 #include "toml11/value.hpp"
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
@@ -22,8 +22,8 @@ template<>
 struct from<PluginModel> {
     template<typename TC>
     static PluginModel from_toml(const toml::basic_value<TC>& v) {
-        Version ver;
         std::string plugin_name = toml::find<std::string>(v, "name");
+        Version ver{};
         
         if (!parseVersion(toml::find<std::string>(v, "version"), ver))
             throw std::runtime_error(

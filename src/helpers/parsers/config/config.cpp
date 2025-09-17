@@ -1,15 +1,18 @@
 #include "config.hpp"
+#include <algorithm>
 #include <filesystem>
 #include <format>
-#include <regex>
 #include <stdexcept>
 #include <string>
 #include <system_error>
 #include <utility>
 #include <vector>
 #include "plugin_model.hpp"
+#include "toml.hpp"
 #include "toml11/find.hpp"
 #include "toml11/value.hpp"
+
+#include "toml_from.hpp" // need for override method toml::from
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
     #define DYNAMIC_LIB_EXTENSION ".dll"
@@ -49,43 +52,14 @@ ConfigParser::ConfigParser(const std::string& configPath)
     auto res = toml::try_parse(cannonical_path);
     
     if (res.is_ok())
-        data = std::move(res.unwrap());
+        pluginsInfo = toml::find<std::vector<PluginModel>>(std::move(res.unwrap()), "plugins");
     else
         throw std::runtime_error(
             std::format("TOML error parse file {}",
                 res.unwrap_err().front().title()
             )
         );
-
-    pluginsInfo = toml::find<std::vector<PluginModel>>(data, "plugins");
 }
-
-std::vector<PluginModel> ConfigParser::parse() {
-    std::vector<PluginModel> plugins;
-
-    const auto plugs = toml::find<std::vector<toml::value>>(data, "plugins");
-
-    for (const auto& plugin : plugs) {
-        Version ver;
-        std::string plugin_name = toml::find<std::string>(plugin, "name");
-        
-        if (!parseVersion(toml::find<std::string>(plugin, "version"), ver))
-            throw std::runtime_error(
-                std::format("Error parse version for {} plugin", plugin_name)
-            );
-
-        plugins.push_back({
-            plugin_name,
-            toml::find<std::string>(plugin, "description"),
-            toml::find<std::string>(plugin, "path") + DYNAMIC_LIB_EXTENSION,
-            ver,
-        });
-    }
-
-    // plugins.push_back(toml::find<PluginModel>(data, "plugins", 0));
-    return plugins;
-}
-// return std::vector<PluginModel>{};
 
 const std::string ConfigParser::pluginInfo() const {
     std::string t;
@@ -99,33 +73,12 @@ const std::string ConfigParser::pluginInfo() const {
     return t;
 }
 
-inline bool isUShort(int v) {
-    return std::numeric_limits<ushort>::max() >= v && std::numeric_limits<ushort>::min() <= v;
-}
-
-
-bool parseVersion(const std::string& versionString, Version& version) {
-    std::smatch match;
-    int t;
-    if (std::regex_match(versionString, match, std::regex(R"(^(\d+)\.(\d+)\.(\d+)$)"))) {
-        t = std::stoi(match[1].str());
-        if (!isUShort(t)) return false;
-            // throw std::out_of_range("Major version is out of range");
-        version.major = t;
-
-        t = std::stoi(match[2].str());
-        if (!isUShort(t)) return false;
-            // throw std::out_of_range("Minor version is out of range");
-        version.minor = t;
-
-        t = std::stoi(match[3].str());
-        if (!isUShort(t)) return false;
-            // throw std::out_of_range("Patch version is out of range");
-        version.patch = t;
-
-        return true;
-    }
-    return false;
+bool ConfigParser::hasPlugin(const std::string& pluginName) const {
+    return std::find_if(
+        pluginsInfo.begin(),
+        pluginsInfo.end(),
+        [pluginName](PluginModel pluginModel){return pluginModel.name == pluginName;}
+    ) != pluginsInfo.end();
 }
 
 }

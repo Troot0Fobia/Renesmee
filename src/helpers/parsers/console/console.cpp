@@ -1,6 +1,5 @@
 #include "console.hpp"
 #include <iostream>
-// #include <map>
 #include "cxxopts.hpp"
 
 namespace helpers {
@@ -48,11 +47,6 @@ ConsoleParser::ConsoleParser(int argc, char** argv)
 
 bool ConsoleParser::hasOption(const std::string& opt) const {
     return result.contains(opt);
-}
-
-template<typename T>
-T ConsoleParser::getOption(const std::string& opt) const {
-    return result[opt].as<T>();
 }
 
 void ConsoleParser::printHelp(const std::string& additional_message, int exit_code) {

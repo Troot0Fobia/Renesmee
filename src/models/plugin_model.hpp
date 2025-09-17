@@ -25,6 +25,7 @@ struct PluginModel {
     std::string name;
     std::string description;
     std::string path;
+    // std::string version;
     Version version;
 };
 

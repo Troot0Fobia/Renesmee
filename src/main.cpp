@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <iostream>
+#include <string>
 
 #include "config.hpp"
 #include "console.hpp"
@@ -15,10 +16,16 @@ int main(int argc, char* argv[]) {
     }
 
 	helpers::config::ConfigParser config_parser(configFile);
-	// std::vector<PluginModel> plugins = config_parser.parse();
 
     if (console_parser.hasOption("show_plugins")) {
         std::cout << config_parser.pluginInfo() << std::endl;
+        return EXIT_SUCCESS;
+    }
+
+    std::string pluginName{console_parser.getOption<std::string>("plugin")};
+    if (!config_parser.hasPlugin(pluginName)) {
+        std::cout << "Plugin you specified " << pluginName << " does not exist" << std::endl;
+        return EXIT_FAILURE;
     }
 
 	// std::cout << config_parser.pluginInfo(plugins) << std::endl;

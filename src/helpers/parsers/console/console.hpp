@@ -18,7 +18,9 @@ public:
     bool hasOption(const std::string& opt) const;
 
     template<typename T>
-    T getOption(const std::string& opt) const;
+    T getOption(const std::string& opt) const {
+        return result[opt].as<T>();
+    }
 
     ConsoleParser(int argc, char** argv);
     bool checkRequires();
