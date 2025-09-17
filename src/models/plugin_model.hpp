@@ -21,8 +21,9 @@ struct Version {
     }
 };
 
-struct ModuleModel {
+struct PluginModel {
     std::string name;
+    std::string description;
     std::string path;
     Version version;
 };

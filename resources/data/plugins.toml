@@ -1,0 +1,11 @@
+[[plugins]]
+name = "hikvision"
+description = "Plugin for check hikvision cameras on weak password"
+path = './plugins/hikvision'
+version = "1.2.3"
+
+[[plugins]]
+name = "dahua"
+description = "Plugin for check dahua cameras on weak password"
+path = './plugins/dahua'
+version = "4.5.6"

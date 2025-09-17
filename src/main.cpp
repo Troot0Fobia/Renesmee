@@ -1,131 +1,101 @@
 #include <cstdlib>
-#include <format>
 #include <iostream>
-#include <map>
-#include <regex>
-#include <string>
-#include <vector>
 
-#include "cxxopts.hpp"
-#include "toml.hpp"
-#include "toml11/exception.hpp"
-#include "toml11/find.hpp"
-#include "toml11/parser.hpp"
-#include "module_model.hpp"
-#include "toml11/types.hpp"
-#include "toml11/value.hpp"
+#include "config.hpp"
+#include "console.hpp"
 
-
-#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
-    #define DYNAMIC_LIB_EXTENSION ".dll"
-#elif defined(linux) || defined(__linux) || defined(__linux__)
-    #define DYNAMIC_LIB_EXTENSION ".so"
-#elif defined(macintosh) || defined(__APPLE__) || defined(__APPLE_CC__)
-    #define DYNAMIC_LIB_EXTENSION ".dylib"
-#else
-    #error Unknown platform
-#endif
-
-void printHelp(const cxxopts::Options& options, const std::string& additional_message = "", int exit_code = EXIT_FAILURE);
-bool parseVersion(const std::string& versionString, Version& version);
 
 int main(int argc, char* argv[]) {
-    cxxopts::Options options(argv[0], "Reborn Network Scanner");
-    options
-        .set_width(120)
-        .positional_help("<input_file.txt>")
-        .add_options()
-        ("h,help", "Print help message")
-        ("module", "Choose module to work <hikvision>", cxxopts::value<std::string>())
-        ("input", "Input file with targets", cxxopts::value<std::string>())
-        ("o,output", "Output directory to save results", cxxopts::value<std::string>()->default_value("output"))
-        ("proxy", "File with proxies", cxxopts::value<std::string>())
-        ("l,login", "File with usernames", cxxopts::value<std::string>())
-        ("password", "File with passwords", cxxopts::value<std::string>())
-        ("t,threads", "Specify desired count of threads", cxxopts::value<int>()->default_value("100"))
-        ;
+    const std::string configFile = "./resources/data/plugins.toml";
+    
+	helpers::console::ConsoleParser console_parser(argc, argv);
 
-    options.parse_positional({"input"});
-
-    auto result = options.parse(argc, argv);
-
-    if (result.contains("help"))
-        printHelp(options, "", EXIT_SUCCESS);
-
-    const std::map<std::string, std::string> RequiredArgs = {
-        {"module", "You need to specify module for work"},
-        {"input", "You need to specify input targets for work"},
-        {"proxy", "You need to specify proxy for work"},
-        {"login", "You need to specify usernames file for work"},
-        {"password", "You need to specify passwords file for work"},
-    };
-    const std::string configFile = "./resources/data/modules.toml";
-
-    for (const auto& elem : RequiredArgs)
-        if (!result.contains(elem.first))
-            printHelp(options, elem.second);
-
-    toml::basic_value<toml::type_config> data;
-    try {
-        data = toml::parse(configFile);
-    } catch (const toml::exception& err) {
-        printHelp(options, std::format("Error with parsing file {}:\n{}", configFile, err.what()));
-    }
-    if (data.is_empty())
-        printHelp(options, "You need to specify module description in ./resources/data/modules.toml");
-
-    const auto& modules = toml::find<std::vector<toml::value>>(data, "modules");
-
-    std::vector<ModuleModel> Modules;
-    for (const auto& mod : modules) {
-        Version version;
-        std::string module_name = toml::find<std::string>(mod, "name");
-        
-        if (!parseVersion(toml::find<std::string>(mod, "version"), version))
-            printHelp(options, std::format("Invalid version for module {}", module_name));
-        
-        Modules.push_back({
-            module_name,
-            toml::find<std::string>(mod, "path") + DYNAMIC_LIB_EXTENSION,
-            version,
-        });
+    if (console_parser.hasOption("help")) {
+        console_parser.printHelp("", EXIT_SUCCESS);
     }
 
-    for (const auto& module : Modules) {
-        std::cout << "Module name: " << module.name << '\n';
-        std::cout << "Module path: " << module.path << '\n';
-        std::cout << "Module version: " << module.version.getStringVersion() << "\n\n";
+	helpers::config::ConfigParser config_parser(configFile);
+	// std::vector<PluginModel> plugins = config_parser.parse();
+
+    if (console_parser.hasOption("show_plugins")) {
+        std::cout << config_parser.pluginInfo() << std::endl;
     }
 
-    std::cout << "Params:\n";
-    for (const auto& param: result.arguments()) {
-        std::cout << param.key() << ':' << param.value() << '\n';
-    }
+	// std::cout << config_parser.pluginInfo(plugins) << std::endl;
 
-    std::cout << "\nDefaults:\n";
-    for (const auto& param: result.defaults()) {
-        std::cout << param.key() << ':' << param.value() << '\n';
-    }
 
-    return EXIT_SUCCESS;
-}
+	// bool show_plugins{false};
 
-void printHelp(const cxxopts::Options& options, const std::string& additional_message, int exit_code) {
-    if (!additional_message.empty())
-        std::cerr << "[ERROR] " << additional_message << "\n\n";
 
-    std::cout << options.help() << std::endl;
+	// const auto& plugins = toml::find<std::vector<toml::value>>(data, "plugins");
+	// // bool find_module{false};
+	// // std::string user_module = result["module"].as<std::string>();
+	// std::vector<PluginModel> Plugins;
 
-    std::exit(exit_code);
-}
+	// for (const auto& mod : plugins) {
+        // Version version;
+        // std::string module_name = toml::find<std::string>(mod, "name");
+        // // if (user_module.compare(module_name) == 0) {
+        // // find_module = true;
+        // // }
 
-bool parseVersion(const std::string& versionString, Version& version) {
-    std::smatch match;
-    if (std::regex_match(versionString, match, std::regex(R"(^(\d+)\.(\d+)\.(\d+)$)"))) {
-        version.major = std::stoi(match[1].str());
-        version.minor = std::stoi(match[2].str());
-        version.patch = std::stoi(match[3].str());
-        return true;
-    }
-    return false;
+        // if (!parseVersion(toml::find<std::string>(mod, "version"), version))
+            // printHelp(options, std::format("Invalid version for module {}", module_name));
+
+        // Plugins.push_back({
+            // module_name,
+            // toml::find<std::string>(mod, "description"),
+            // toml::find<std::string>(mod, "path") + DYNAMIC_LIB_EXTENSION,
+            // version,
+        // });
+
+	// }
+
+	// if (show_plugins) {
+        // for (const auto& module : Plugins) {
+            // std::cout << module.name << " - " << module.descpription << '\n';
+        // }
+
+	// return EXIT_SUCCESS;
+
+	// }
+
+	// const std::map<std::string, std::string> RequiredArgs = {
+        // {"module", "You need to specify module for work"},
+        // {"input", "You need to specify input targets for work"},
+        // {"proxy", "You need to specify proxy for work"},
+        // {"login", "You need to specify usernames file for work"},
+        // {"password", "You need to specify passwords file for work"},
+	// };
+
+	// for (const auto& elem : RequiredArgs)
+	    // if (!result.contains(elem.first))
+	        // printHelp(options, elem.second);
+
+	// // if (!find_module) {
+	    // // std::cerr << "[ERROR] You specified wrong module name: " << user_module << '\n' <<
+        // // "Possible modules:\n";
+        // // for (const auto& module : Modules) {
+        // // std::cerr << module.name << " - " << module.descpription << '\n';
+        // // }
+        // // return EXIT_FAILURE;
+    // // }
+
+	// for (const auto& module : Plugins) {
+        // std::cout << "Module name: " << module.name << '\n';
+        // std::cout << "Module path: " << module.path << '\n';
+        // std::cout << "Module version: " << module.version.getStringVersion() << "\n\n";
+	// }
+
+	// std::cout << "Params:\n";
+    // for (const auto& param: result.arguments()) {
+        // std::cout << param.key() << ':' << param.value() << '\n';
+	// }
+
+	// std::cout << "\nDefaults:\n";
+    // for (const auto& param: result.defaults()) {
+        // std::cout << param.key() << ':' << param.value() << '\n';
+	// }
+
+	return EXIT_SUCCESS;
 }
