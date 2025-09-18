@@ -3,13 +3,14 @@
 #include <iostream>
 #include <string>
 
+#include "base.hpp"
 #include "config.hpp"
 #include "console.hpp"
 #include "plugin_model.hpp"
 
 
 int main(int argc, char* argv[]) {
-    const std::string configFile = "./resources/data/plugins.toml";
+    std::string configFile = "./resources/data/plugins.toml";
     
     try {
         helpers::console::ConsoleParser console_parser(argc, argv);
@@ -17,6 +18,10 @@ int main(int argc, char* argv[]) {
         if (console_parser.hasOption("help")) {
             std::cout << console_parser.help() << std::endl;
             return EXIT_SUCCESS;
+        }
+
+        if (std::string path = console_parser.getOption<std::string>("config"); !path.empty()) {
+            configFile = path;
         }
 
         helpers::config::ConfigParser config_parser(configFile);
@@ -46,6 +51,8 @@ int main(int argc, char* argv[]) {
         }
 
         const PluginModel& plugin = plugin_opt->get();
+        
+        auto loader = helpers::loader::createLoader(plugin.path);
         
 
     } catch (const std::exception& ex) {

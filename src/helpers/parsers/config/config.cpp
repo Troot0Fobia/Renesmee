@@ -6,13 +6,13 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
-#include <system_error>
 #include <utility>
 #include <vector>
 #include "plugin_model.hpp"
 #include "toml.hpp"
 #include "toml11/find.hpp"
 #include "toml11/value.hpp"
+#include "path_resolver.hpp"
 
 #include "toml_from.hpp" // need for override method toml::from
 
@@ -20,24 +20,26 @@ namespace helpers {
 namespace config {
 
 ConfigParser::ConfigParser(const std::string& configPath) {
-    if (configPath.empty())
-        throw std::invalid_argument("Config path cannot be empty");
+    // if (configPath.empty())
+    //     throw std::invalid_argument("Config path cannot be empty");
 
-    std::error_code err_code;
-    std::filesystem::path path(configPath);
+    // std::error_code err_code;
+    // std::filesystem::path path(configPath);
 
-    if (!std::filesystem::exists(path, err_code))
-        throw std::filesystem::filesystem_error(
-            std::format("Provided path {} does not exist", configPath),
-            err_code
-        );
+    // if (!std::filesystem::exists(path, err_code))
+    //     throw std::filesystem::filesystem_error(
+    //         std::format("Provided path {} does not exist", configPath),
+    //         err_code
+    //     );
 
-    std::filesystem::path cannonical_path = std::filesystem::canonical(path, err_code);
+    // std::filesystem::path cannonical_path = std::filesystem::canonical(path, err_code);
     
-    if (err_code)
-        throw std::filesystem::filesystem_error(
-            "Provided path {} does not exist", err_code
-        );
+    // if (err_code)
+    //     throw std::filesystem::filesystem_error(
+    //         "Provided path {} does not exist", err_code
+    //     );
+
+    const std::filesystem::path cannonical_path = resolvePath(configPath);
 
     auto res = toml::try_parse(cannonical_path);
     
