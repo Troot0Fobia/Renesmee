@@ -3,12 +3,17 @@
 #ifndef CONSOLE_H
 #define CONSOLE_H
 
-#include <cstdlib>
+#include <vector>
 #include <string>
 #include "cxxopts.hpp"
 
 namespace helpers {
 namespace console {
+
+struct MissingArgument {
+    std::string argument;
+    std::string message;
+};
 
 class ConsoleParser {
     cxxopts::Options options;
@@ -23,8 +28,8 @@ public:
     }
 
     ConsoleParser(int argc, char** argv);
-    bool checkRequires();
-    void printHelp(const std::string& additional_message = "", int exit_code = EXIT_FAILURE);
+    std::vector<MissingArgument> checkRequired() const;
+    std::string help() const;
 };
 
 } // console

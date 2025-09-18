@@ -1,25 +1,25 @@
 #pragma once
 
+#include <functional>
+#include <optional>
 #ifndef CONFIG_H
 #define CONFIG_H
 
 #include <string>
 #include <vector>
 #include "plugin_model.hpp"
-// #include "toml.hpp"
 
 namespace helpers {
 namespace config {
 
 class ConfigParser {
-    std::string _configPath;
     std::vector<PluginModel> pluginsInfo;
 
 public:
     ConfigParser(const std::string& configPath);
     const std::string pluginInfo() const;
-    bool hasPlugin(const std::string& plugin) const;
-
+    std::optional<std::reference_wrapper<const PluginModel>> getPlugin(const std::string& plugin) const;
+    PluginModel getWorkPlugin() const;
 };
 
 } // config

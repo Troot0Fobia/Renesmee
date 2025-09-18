@@ -1,9 +1,9 @@
 #pragma once
 
-#include <tuple>
 #ifndef MODULE_MODEL_H
 #define MODULE_MODEL_H
 
+#include <tuple>
 #include <string>
 #include <format>
 
@@ -16,7 +16,7 @@ struct Version {
         return std::format("{}.{}.{}", major, minor, patch);
     }
 
-    bool operator==(const Version& other) {
+    bool operator==(const Version& other) const {
         return std::tie(major, minor, patch) == std::tie(other.major, other.minor, other.patch);
     }
 };
@@ -25,7 +25,6 @@ struct PluginModel {
     std::string name;
     std::string description;
     std::string path;
-    // std::string version;
     Version version;
 };
 

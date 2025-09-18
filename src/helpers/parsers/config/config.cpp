@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <format>
+#include <functional>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <system_error>
@@ -14,31 +16,19 @@
 
 #include "toml_from.hpp" // need for override method toml::from
 
-#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
-    #define DYNAMIC_LIB_EXTENSION ".dll"
-#elif defined(linux) || defined(__linux) || defined(__linux__)
-    #define DYNAMIC_LIB_EXTENSION ".so"
-#elif defined(macintosh) || defined(__APPLE__) || defined(__APPLE_CC__)
-    #define DYNAMIC_LIB_EXTENSION ".dylib"
-#else
-    #error Unknown platform
-#endif
-
 namespace helpers {
 namespace config {
 
-ConfigParser::ConfigParser(const std::string& configPath)
-    : _configPath(std::move(configPath))
-{
-    if (_configPath.empty())
+ConfigParser::ConfigParser(const std::string& configPath) {
+    if (configPath.empty())
         throw std::invalid_argument("Config path cannot be empty");
 
     std::error_code err_code;
-    std::filesystem::path path(_configPath);
+    std::filesystem::path path(configPath);
 
     if (!std::filesystem::exists(path, err_code))
         throw std::filesystem::filesystem_error(
-            std::format("Provided path {} does not exist", _configPath),
+            std::format("Provided path {} does not exist", configPath),
             err_code
         );
 
@@ -73,12 +63,19 @@ const std::string ConfigParser::pluginInfo() const {
     return t;
 }
 
-bool ConfigParser::hasPlugin(const std::string& pluginName) const {
-    return std::find_if(
-        pluginsInfo.begin(),
-        pluginsInfo.end(),
-        [pluginName](PluginModel pluginModel){return pluginModel.name == pluginName;}
-    ) != pluginsInfo.end();
+std::optional<std::reference_wrapper<const PluginModel>>
+ConfigParser::getPlugin(const std::string& pluginName) const {
+    auto it = std::ranges::find_if(
+        pluginsInfo,
+        [&pluginName](const PluginModel& pluginModel){
+            return pluginModel.name == pluginName;
+        }
+    );
+
+    if (it != pluginsInfo.end())
+        return std::cref(*it);
+
+    return std::nullopt;
 }
 
 }
