@@ -18,13 +18,13 @@ protected:
         if (!ptr)
             throw std::runtime_error(std::format("Failed receive method {}\n", name));
 
-        return ptr;
+        return (void*)ptr;
     }
 
 public:
     explicit WinLoader(const std::string& path) {
         const std::filesystem::path cannonical_path = resolvePath(path);
-        handler = LoadLibrary(cannonical_path.c_str());
+        handler = LoadLibrary(cannonical_path.string().c_str());
 
         if (!handler)
             throw std::runtime_error(std::format("Failed to open dynamic library {}\n", cannonical_path.string()));

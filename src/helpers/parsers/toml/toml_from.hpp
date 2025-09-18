@@ -41,5 +41,5 @@ struct from<PluginModel> {
 }
 
 inline bool isUShort(int v) {
-    return std::numeric_limits<ushort>::max() >= v && std::numeric_limits<ushort>::min() <= v;
+    return std::numeric_limits<unsigned short>::max() >= v && std::numeric_limits<unsigned short>::min() <= v;
 }
