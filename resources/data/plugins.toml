@@ -1,7 +1,7 @@
 [[plugins]]
 name = "hikvision"
 description = "Plugin for check hikvision cameras on weak password"
-path = './plugins/hikvision'
+path = './plugins/libhikvision'
 version = "1.2.3"
 
 [[plugins]]

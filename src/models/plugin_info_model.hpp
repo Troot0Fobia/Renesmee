@@ -12,7 +12,7 @@ struct Version {
     int minor;
     int patch;
 
-    std::string getStringVersion() const {
+    const std::string getStringVersion() const {
         return std::format("{}.{}.{}", major, minor, patch);
     }
 
@@ -21,7 +21,7 @@ struct Version {
     }
 };
 
-struct PluginModel {
+struct PluginInfoModel {
     std::string name;
     std::string description;
     std::string path;

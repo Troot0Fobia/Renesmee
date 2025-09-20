@@ -1,6 +1,6 @@
 #pragma once
 
-#include "plugin_model.hpp"
+#include "plugin_info_model.hpp"
 #include "toml11/find.hpp"
 #include "toml11/types.hpp"
 #include "toml11/value.hpp"
@@ -19,9 +19,9 @@ bool parseVersion(const std::string& versionString, Version& version);
 
 namespace toml {
 template<>
-struct from<PluginModel> {
+struct from<PluginInfoModel> {
     template<typename TC>
-    static PluginModel from_toml(const toml::basic_value<TC>& v) {
+    static PluginInfoModel from_toml(const toml::basic_value<TC>& v) {
         std::string plugin_name = toml::find<std::string>(v, "name");
         Version ver{};
         
@@ -30,7 +30,7 @@ struct from<PluginModel> {
                 std::format("Error parse version for {} plugin", plugin_name)
             );
 
-        return PluginModel{
+        return PluginInfoModel{
             plugin_name,
             toml::find<std::string>(v, "description"),
             toml::find<std::string>(v, "path") + DYNAMIC_LIB_EXTENSION,
@@ -38,8 +38,4 @@ struct from<PluginModel> {
         };
     }
 };
-}
-
-inline bool isUShort(int v) {
-    return std::numeric_limits<unsigned short>::max() >= v && std::numeric_limits<unsigned short>::min() <= v;
 }

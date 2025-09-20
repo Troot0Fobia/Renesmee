@@ -28,8 +28,8 @@ public:
     }
 
     ConsoleParser(int argc, char** argv);
-    std::vector<MissingArgument> checkRequired() const;
-    std::string help() const;
+    const std::vector<MissingArgument> checkRequired() const;
+    const std::string help() const;
 };
 
 } // console

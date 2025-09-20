@@ -16,8 +16,8 @@ public:
     virtual ~Base() = default;
 
     template<typename FuncSign>
-    FuncSign* getFunction(const std::string& name) const {
-        return reinterpret_cast<FuncSign*>(getFunctionVoid(name));
+    FuncSign getFunction(const std::string& name) const {
+        return reinterpret_cast<FuncSign>(getFunctionVoid(name));
     }
 };
 

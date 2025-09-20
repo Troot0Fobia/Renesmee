@@ -6,7 +6,8 @@ set(HELPERS_LIST
     parsers/console/console.cpp
     parsers/config/config.cpp
     parsers/toml/toml_from.cpp
-    filesystem/path_resolver.cpp
+    filesystem/filesystem_resolver.cpp
+    parsers/inputs/inputs.cpp
 )
 
 add_library(helpers ${HELPERS_LIST})
@@ -17,9 +18,11 @@ target_include_directories(helpers PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/parsers/console
     ${CMAKE_CURRENT_SOURCE_DIR}/parsers/config
     ${CMAKE_CURRENT_SOURCE_DIR}/parsers/toml
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsers/inputs
     ${CMAKE_CURRENT_SOURCE_DIR}/filesystem
 
     ${PROJECT_SOURCE_DIR}/src/models
+    ${PROJECT_SOURCE_DIR}/src/models/inputs
 )
 
 target_link_libraries(helpers PUBLIC cxxopts toml11::toml11 lib_loader)

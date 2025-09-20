@@ -35,7 +35,7 @@ bool ConsoleParser::hasOption(const std::string& opt) const {
     return result.contains(opt);
 }
 
-std::vector<MissingArgument> ConsoleParser::checkRequired() const {
+const std::vector<MissingArgument> ConsoleParser::checkRequired() const {
     const std::map<std::string, std::string> RequiredArgs = {
         {"plugin",   "You need to specify plugin for work"},
         {"input",    "You need to specify input targets for work"},
@@ -52,7 +52,7 @@ std::vector<MissingArgument> ConsoleParser::checkRequired() const {
     return missing;
 }
 
-std::string ConsoleParser::help() const {
+const std::string ConsoleParser::help() const {
     return options.help();
 }
 
