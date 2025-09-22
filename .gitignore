@@ -40,6 +40,7 @@
 # debug information files
 *.dwo
 
-/.cache
-/temp
-/build
+.cache/
+temp/
+build/
+.vscode/
