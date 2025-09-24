@@ -3,7 +3,7 @@
 #include "console_args.hpp"
 #include "address.hpp"
 #include "proxy.hpp"
-#include "base.hpp"
+#include "lib_loader.hpp"
 #include "plugin_info.hpp"
 #include "plugin_api.hpp"
 #include "result.hpp"
@@ -11,7 +11,6 @@
 #include <filesystem>
 #include <mutex>
 #include <optional>
-#include <stop_token>
 #include <string>
 #include <vector>
 
@@ -25,7 +24,7 @@ class Plugin {
     PluginInfo pluginInfo;
     std::unique_ptr<lib_loader::Base> loader;
     PluginAPI* api = nullptr;
-    std::stop_source stop_source;
+    std::atomic<bool> *isStopAtomic;
     std::mutex mutex;
 
     std::vector<std::string> logins;
@@ -43,7 +42,11 @@ class Plugin {
     void createOutput(const std::string& dirPath);
 
 public:
-    explicit Plugin(const domain::dtos::ConsoleArgs& consoleArgs, PluginInfo pluginPath);
+    explicit Plugin(
+        std::atomic<bool> *request,
+        const domain::dtos::ConsoleArgs& consoleArgs,
+        PluginInfo pluginPath
+    );
 
     Plugin(const Plugin&) = delete;
     Plugin& operator=(const Plugin&) = delete;
@@ -51,12 +54,10 @@ public:
     // Plugin& operator=(Plugin&&) = default;
     
     std::string getVersion() const noexcept;
-    void brute(const Addr& addr, const Proxy &proxy, const std::stop_token& st);
+    void brute(const Addr& addr, const Proxy &proxy);
     void brute_wrapper(std::vector<Addr>::iterator begin_addr, std::vector<Addr>::iterator end_addr, const Proxy& proxy);
     void work();
     void printResult(const Result& output);
-
-    const std::stop_source& getStopSource() const noexcept;
 
     std::string getConfigs() const noexcept;
 };

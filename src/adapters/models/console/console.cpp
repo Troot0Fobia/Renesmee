@@ -14,10 +14,10 @@ ConsoleParser::ConsoleParser(int argc, char** argv)
         .add_options()
         ("h,help", "Print help message")
         ("config", "Provide path to plugins config file", cxxopts::value<std::string>(), "<file>")
-        ("show_plugins", "Print possible plugins with description", cxxopts::value<bool>())
+        ("show-plugins", "Print possible plugins with description", cxxopts::value<bool>())
         ("plugin", "Plugin for work", cxxopts::value<std::string>(), "<plugin_name>")
         ("input", "Input file with targets", cxxopts::value<std::string>())
-        ("o,output", "Output directory to save results", cxxopts::value<std::string>()->default_value("output"), "<folder>")
+        ("o,output-dir", "Output directory to save results", cxxopts::value<std::string>()->default_value("output"), "<folder>")
         ("proxy", "File with proxies", cxxopts::value<std::string>(), "<file>")
         ("l,login", "File with usernames", cxxopts::value<std::string>(), "<file>")
         ("password", "File with passwords", cxxopts::value<std::string>(), "<file>")
@@ -60,7 +60,7 @@ domain::dtos::ConsoleArgs ConsoleParser::getArgs() const {
         utils::resolvePath(result["login"].as<std::string>()),
         utils::resolvePath(result["password"].as<std::string>()),
         utils::resolvePath(result["proxy"].as<std::string>()),
-        result["output"].as<std::string>(),
+        result["output-dir"].as<std::string>(),
         result["threads"].as<int>()
     };
 }

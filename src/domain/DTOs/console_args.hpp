@@ -10,7 +10,7 @@ struct ConsoleArgs {
     const std::filesystem::path passwordsPath;
     const std::filesystem::path proxiesPath;
     const std::string outputPath;
-    unsigned short threadsCount;
+    int threadsCount;
 };
 
 } // namespace domain::dtos

@@ -1,7 +1,7 @@
 #include "plugin.hpp"
 #include "address.hpp"
 #include "api_DTOs.hpp"
-#include "base.hpp"
+#include "lib_loader.hpp"
 #include "console_args.hpp"
 #include "filesystem_utils.hpp"
 #include <filesystem>
@@ -9,7 +9,6 @@
 #include <iostream>
 #include <optional>
 #include <stdexcept>
-#include <stop_token>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -19,8 +18,11 @@
 
 namespace adapters::plugin {
 
-Plugin::Plugin(const domain::dtos::ConsoleArgs& consoleArgs, PluginInfo pluginInfo)
-    : threads(consoleArgs.threadsCount),  pluginInfo(std::move(pluginInfo))
+Plugin::Plugin(
+    std::atomic<bool>* isStopAtomic,
+    const domain::dtos::ConsoleArgs& consoleArgs,
+    PluginInfo pluginInfo
+) : isStopAtomic(std::move(isStopAtomic)), threads(consoleArgs.threadsCount),  pluginInfo(std::move(pluginInfo))
 {
     readData(logins, consoleArgs.loginsPath);
     readData(passwords, consoleArgs.passwordsPath);
@@ -28,12 +30,12 @@ Plugin::Plugin(const domain::dtos::ConsoleArgs& consoleArgs, PluginInfo pluginIn
     readData(proxies, consoleArgs.proxiesPath);
     createOutput(consoleArgs.outputPath);
 
-    loader = lib_loader::createLoader(utils::resolvePath(pluginInfo.path));
+    loader = lib_loader::createLoader(utils::resolvePath(this->pluginInfo.path));
     auto get_plugin_api = loader->getFunction<PluginAPI* (*)()>("get_plugin_api");
     api = get_plugin_api();
 
     if (!api)
-        throw std::runtime_error(std::format("Plugin {} returned null api", pluginInfo.name));
+        throw std::runtime_error(std::format("Plugin {} returned null api", this->pluginInfo.name));
 
     if (!api->getVersion)
         throw std::runtime_error("Plugin's 'getVersion' function does not specified");
@@ -93,7 +95,7 @@ Plugin::parseAddr(const std::string& addr) {
 }
 
 void Plugin::readData(std::vector<std::string> &v, const std::string &filePath) {
-    std::ifstream file((utils::resolvePath(filePath)));
+    std::ifstream file(filePath);
     if (!file.is_open())
         throw std::runtime_error(std::format("Failed open file: {}", filePath));
 
@@ -101,12 +103,12 @@ void Plugin::readData(std::vector<std::string> &v, const std::string &filePath) 
     while (std::getline(file, s)) {
         if (s.empty()) continue;
 
-        v.push_back(s);
+        v.emplace_back(s);
     }
 }
 
 void Plugin::readData(std::vector<Addr>& v, const std::string& filePath) {
-    std::ifstream file((utils::resolvePath(filePath)));
+    std::ifstream file(filePath);
     if (!file.is_open())
         throw std::runtime_error(std::format("Failed open file: {}", filePath));
 
@@ -117,12 +119,12 @@ void Plugin::readData(std::vector<Addr>& v, const std::string& filePath) {
         auto res = parseAddr(s);
         if (!res) continue;
 
-        v.push_back({res->first, res->second});
+        v.emplace_back(res->first, res->second);
     }
 }
 
 void Plugin::readData(std::vector<Proxy>& v, const std::string& filePath) {
-    std::ifstream file((utils::resolvePath(filePath)));
+    std::ifstream file(filePath);
     if (!file.is_open())
         throw std::runtime_error("Error open input file: " + filePath);
 
@@ -144,7 +146,7 @@ void Plugin::readData(std::vector<Proxy>& v, const std::string& filePath) {
         auto res = parseAddr(s);
         if (!res) continue;
 
-        v.push_back({
+        v.emplace_back(Proxy{
             res->first,
             res->second,
             username,
@@ -191,7 +193,7 @@ void Plugin::work() {
     size_t const num_threads = std::min(
         std::min(
             std::min(
-                inputs.size(),
+                length,
                 proxies.size()
             ),
             (size_t)threads
@@ -201,7 +203,7 @@ void Plugin::work() {
     size_t const block_size = length / num_threads;
     size_t const remainder = length % num_threads;
 
-    std::vector<std::thread> threads(num_threads);
+    std::vector<std::jthread> threads(num_threads);
 
     auto block_start = inputs.begin();
 
@@ -210,7 +212,7 @@ void Plugin::work() {
         size_t const step = i < remainder ? block_size + 1 : block_size;
         auto block_end = block_start;
         std::advance(block_end, step);
-        threads[i] = std::thread(
+        threads[i] = std::jthread(
             &Plugin::brute_wrapper,
             this,
             block_start,
@@ -220,7 +222,7 @@ void Plugin::work() {
         block_start = block_end;
     }
 
-    threads[i] = std::thread(
+    threads[i] = std::jthread(
         &Plugin::brute_wrapper,
         this,
         block_start,
@@ -229,19 +231,12 @@ void Plugin::work() {
     );
     
     api->work();
-    for (auto& thread : threads)
-        if (thread.joinable())
-            thread.join();
 }
 
-const std::stop_source& Plugin::getStopSource() const noexcept {
-    return stop_source;
-}
-
-void Plugin::brute(const Addr& addr, const Proxy &proxy, const std::stop_token& st) {
+void Plugin::brute(const Addr& addr, const Proxy &proxy) {
     for (const auto &login : logins) { 
         for (const auto &password : passwords) {
-            if (st.stop_requested()) return;
+            if (isStopAtomic->load()) return;
             std::cout << "Address: " << addr.ip << ":" << addr.port <<
                          ". Trying combination: " + login << " " << password << std::endl;
             if (api->sendRequest(
@@ -253,7 +248,7 @@ void Plugin::brute(const Addr& addr, const Proxy &proxy, const std::stop_token& 
                 // "Login: " << login << '\n' <<
                 // "Password: " << password << std::endl;
                 Result output{addr.ip, addr.port, login, password};
-                results.push_back(output);
+                results.emplace_back(output);
                 printResult(output);
                 return;
             }
@@ -262,7 +257,7 @@ void Plugin::brute(const Addr& addr, const Proxy &proxy, const std::stop_token& 
 }
 
 void Plugin::brute_wrapper(std::vector<Addr>::iterator begin_addr, std::vector<Addr>::iterator end_addr, const Proxy& proxy) {
-    for (; begin_addr != end_addr; ++begin_addr) {
+    for (; begin_addr != end_addr && !isStopAtomic->load(); ++begin_addr) {
         // Temp solution
         if (begin_addr->port == 0) {
             std::cout << "Address does not have specified port. Skip for now..." << std::endl;
@@ -274,7 +269,7 @@ void Plugin::brute_wrapper(std::vector<Addr>::iterator begin_addr, std::vector<A
             continue;
         }
 
-        brute(*begin_addr, proxy, stop_source.get_token());
+        brute(*begin_addr, proxy);
     }
 }
 

@@ -1,3 +1,4 @@
+#include <atomic>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
@@ -8,10 +9,17 @@
 #include "console.hpp"
 #include "plugin.hpp"
 #include "plugin_info.hpp"
+#include "signal_handler.hpp"
 
 int main(int argc, char* argv[]) {
+    std::atomic<bool> stop{false};
     std::string configFile = "./configs/plugins.toml";
-    
+
+    adapters::controllers::signal_handler::setHandler([&stop]{
+        stop.store(true);
+        return true;
+    });
+
     try {
         adapters::console::ConsoleParser console_parser(argc, argv);
 
@@ -28,7 +36,7 @@ int main(int argc, char* argv[]) {
 
         adapters::config::ConfigParser config_parser(configFile);
 
-        if (console_parser.hasOption("show_plugins")) {
+        if (console_parser.hasOption("show-plugins")) {
             std::cout << config_parser.pluginInfo() << std::endl;
             return EXIT_SUCCESS;
         }
@@ -54,6 +62,7 @@ int main(int argc, char* argv[]) {
         }
 
         adapters::plugin::Plugin plugin(
+            &stop,
             console_parser.getArgs(),
             std::move(*plugin_info_opt)
         );
