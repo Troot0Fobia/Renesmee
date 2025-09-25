@@ -30,13 +30,11 @@ extern "C" {
 #endif
 
 using GetVersion = const char* (PLUGIN_API_CALL *)() noexcept;
-using Work = void (PLUGIN_API_CALL *)() noexcept;
-using ValidateAddr = int (PLUGIN_API_CALL *)(const char *, unsigned short);
-using SendRequest = int (PLUGIN_API_CALL *)(__Addr, __Proxy, __Creds);
+using ValidateAddr = int (PLUGIN_API_CALL *)(const __Addr*);
+using SendRequest = int (PLUGIN_API_CALL *)(const __Addr*, const __Proxy*, __Creds);
 
 struct PLUGIN_API_EXPORT PluginAPI {
     GetVersion getVersion;
-    Work work;
     ValidateAddr validateAddr;
     SendRequest sendRequest;
 };
