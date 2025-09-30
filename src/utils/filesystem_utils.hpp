@@ -5,6 +5,7 @@
 
 namespace utils {
 
-const std::filesystem::path resolvePath(const std::string& path);
+std::filesystem::path resolvePath(const std::string& path_str);
+std::filesystem::path createFolder(const std::string& path_str);
 
 } // namespace utils

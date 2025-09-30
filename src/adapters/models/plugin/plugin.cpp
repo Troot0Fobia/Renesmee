@@ -16,7 +16,6 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -34,7 +33,8 @@ Plugin::Plugin(
     readData(passwords, consoleArgs.passwordsPath);
     readData(inputs, consoleArgs.inputPath);
     readData(proxies, consoleArgs.proxiesPath);
-    createOutput(consoleArgs.outputPath);
+
+    outputPath = utils::createFolder(outputPath);
 
     output_file = std::ofstream(outputPath / "output.txt", std::ios_base::out | std::ios_base::app);
 
@@ -161,38 +161,6 @@ void Plugin::readData(std::vector<Proxy>& v, const std::string& filePath) {
             "http"
         });
     }
-}
-
-void Plugin::createOutput(const std::string& dirPathStr) {
-    if (dirPathStr.empty())
-        throw std::runtime_error("Output path cannot be empty");
-
-    std::error_code err_code;
-    outputPath = std::filesystem::weakly_canonical(
-        std::filesystem::path(dirPathStr),
-        err_code
-    );
-
-    if (err_code)
-        throw std::filesystem::filesystem_error(
-            std::format("Error occured with path {}: {}", dirPathStr, err_code.message()),
-            err_code
-        );
-
-    if (std::filesystem::exists(outputPath))
-        return;
-
-    if (!std::filesystem::create_directories(outputPath, err_code))
-        throw std::filesystem::filesystem_error(
-            std::format(
-                "Failed create directories with path {}: {}",
-                outputPath.string(),
-                err_code.message()
-            ),
-            err_code
-        );
-
-    std::cout << "Created folder: " << outputPath << std::endl;
 }
 
 void Plugin::work() {

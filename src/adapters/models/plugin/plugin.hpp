@@ -51,7 +51,6 @@ class Plugin {
     void readData(std::vector<std::string> &v, const std::string &filePath);
     void readData(std::queue<Addr>& q, const std::string& filePath);
     void readData(std::vector<Proxy>& v, const std::string& filePath);
-    void createOutput(const std::string& dirPath);
 
 public:
     explicit Plugin(

@@ -5,7 +5,7 @@
 #include <sys/ioctl.h>
 
 namespace adapters::controllers {
-    
+
 class Renderer : public BaseRenderer {
     inline static std::atomic<bool> resized{false};
 
@@ -37,7 +37,7 @@ public:
 
         refreshSize();
     }
-    
+
     void checkSize() override {
         if (resized.load()) {
             resized.store(false);
