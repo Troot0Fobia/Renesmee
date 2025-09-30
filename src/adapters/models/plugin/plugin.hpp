@@ -7,8 +7,10 @@
 #include "plugin_info.hpp"
 #include "plugin_api.hpp"
 #include "result.hpp"
+#include "renderer.hpp"
 
 #include <filesystem>
+#include <fstream>
 #include <mutex>
 #include <optional>
 #include <queue>
@@ -16,7 +18,7 @@
 #include <thread>
 #include <vector>
 
-#define MAX_THREAD_COUNT 999
+#define MAX_THREAD_COUNT 999UL
 
 namespace adapters::plugin {
 
@@ -27,7 +29,12 @@ class Plugin {
     std::unique_ptr<lib_loader::Base> loader;
     PluginAPI* api = nullptr;
     std::atomic<bool> *isStopAtomic;
-    std::mutex mutex;
+    std::atomic<unsigned int> processed{};
+    std::atomic<unsigned int> invalids{};
+    std::atomic<unsigned int> valids{};
+    std::mutex data_mutex;
+    std::mutex file_mutex;
+    std::ofstream output_file;
 
     std::vector<std::string> logins;
     std::vector<std::string> passwords;
@@ -35,6 +42,7 @@ class Plugin {
     std::vector<Proxy> proxies;
     std::vector<Result> results;
     std::filesystem::path outputPath;
+    std::unique_ptr<controllers::BaseRenderer> renderer;
 
     std::vector<std::jthread> workers;
     unsigned short threads;
@@ -57,7 +65,6 @@ public:
     // Plugin(Plugin&&) = default;
     // Plugin& operator=(Plugin&&) = default;
     
-    std::string getVersion() const noexcept;
     void work();
     void printResult(const Result& output);
 

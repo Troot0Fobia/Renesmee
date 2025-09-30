@@ -45,6 +45,7 @@ int main(int argc, char* argv[]) {
             !missing.empty())
         {
             std::cerr << "Required parameter was not specified:\n";
+            
             for (const auto& [argument, message] : missing)
                 std::cerr << argument << " : " << message << "\n";
             std::cerr << console_parser.help() << std::endl;
@@ -67,8 +68,6 @@ int main(int argc, char* argv[]) {
             std::move(*plugin_info_opt)
         );
 
-        std::cout << plugin.getVersion() << std::endl;
-        std::cout << plugin.getConfigs() << std::endl;
         plugin.work();
 
     } catch (const std::exception& ex) {
@@ -77,5 +76,6 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    stop.store(true);
 	return EXIT_SUCCESS;
 }

@@ -95,16 +95,16 @@ ConfigParser::ConfigParser(const std::string& configPath) {
         );
 }
 
-const std::string ConfigParser::pluginInfo() const noexcept {
-    std::string t;
+std::string ConfigParser::pluginInfo() const noexcept {
+    std::stringstream ss;
     for (const auto& plugin : pluginsInfo) {
-        t += "Plugin name: " + plugin.name + "\n" 
-             "Plugin description: " + plugin.description + "\n"
-             "Plugin path: " + plugin.path + "\n"
-             "Plugin version: " + plugin.version.getStringVersion() + "\n\n"
-            ;
+        ss << "Plugin name: " << plugin.name << "\n" <<
+              "Plugin description: " << plugin.description << "\n" <<
+              "Plugin path: " << plugin.path << "\n" <<
+              "Plugin version: " << plugin.version.getStringVersion() << "\n\n"
+              ;
     }
-    return t;
+    return ss.str();
 }
 
 std::optional<PluginInfo>

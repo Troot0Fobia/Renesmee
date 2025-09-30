@@ -14,7 +14,7 @@ class ConfigParser {
 
 public:
     explicit ConfigParser(const std::string& configPath);
-    const std::string pluginInfo() const noexcept;
+    std::string pluginInfo() const noexcept;
     std::optional<PluginInfo> getPlugin(const std::string& pluginName);
 };
 

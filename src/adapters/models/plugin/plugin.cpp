@@ -4,6 +4,10 @@
 #include "lib_loader.hpp"
 #include "console_args.hpp"
 #include "filesystem_utils.hpp"
+#include "renderer.hpp"
+#include <chrono>
+#include <cstddef>
+#include <exception>
 #include <filesystem>
 #include <format>
 #include <iostream>
@@ -13,6 +17,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
 #include <utility>
 #include <vector>
 #include <fstream>
@@ -31,6 +36,12 @@ Plugin::Plugin(
     readData(proxies, consoleArgs.proxiesPath);
     createOutput(consoleArgs.outputPath);
 
+    output_file = std::ofstream(outputPath / "output.txt", std::ios_base::out | std::ios_base::app);
+
+    if (!output_file.is_open()) {
+        std::runtime_error(std::format("Failed open output file: {}", std::string(outputPath / "output.txt")));
+    }
+
     loader = lib_loader::createLoader(utils::resolvePath(this->pluginInfo.path));
     auto get_plugin_api = loader->getFunction<PluginAPI* (*)()>("get_plugin_api");
     api = get_plugin_api();
@@ -46,10 +57,8 @@ Plugin::Plugin(
     
     if (!api->validateAddr)
         throw std::runtime_error("Plugin's 'validateAddr' function does not specified");
-}
-
-std::string Plugin::getVersion() const noexcept {
-    return std::string(api->getVersion());
+    
+    renderer = adapters::controllers::getRenderer();
 }
 
 std::optional<std::pair<std::string, unsigned short>>
@@ -187,12 +196,42 @@ void Plugin::createOutput(const std::string& dirPathStr) {
 }
 
 void Plugin::work() {
-    size_t const num_threads = std::min({
-                                    inputs.size(),
+    const size_t length = inputs.size();
+    const size_t num_threads = std::min({
+                                    length, 
                                     proxies.size(),
-                                    (size_t)threads,
-                                    (size_t)MAX_THREAD_COUNT});
+                                    static_cast<size_t>(threads),
+                                    MAX_THREAD_COUNT});
     workers.reserve(num_threads);
+
+    std::jthread([this, num_threads, length]{
+        renderer->emplaceData(std::format(
+            "You are using {} plugin. Version: {}\n"
+            "Loaded data:\n{}"
+            "Threads: {}\n",
+            pluginInfo.name, std::string(api->getVersion()), getConfigs(), num_threads
+        ));
+        auto start = std::chrono::system_clock::now();
+        try {
+            while (!this->isStopAtomic->load()) {
+                renderer->checkSize();
+                std::cout << renderer->resetPosition(true);
+                unsigned short processed = this->processed,
+                               valids = this->valids,
+                               invalids = this->invalids;
+
+                renderer->progressBar(static_cast<float>(processed) / static_cast<float>(length));
+                renderer->emplaceData(std::format("Goods: {}, Invalids: {}, Processed: {}", valids, invalids, processed));
+                renderer->emplaceData(std::format("[{:%T}]", std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start)));
+                std::cout << renderer->Print() << std::flush;
+                renderer->eraseLines(3);
+
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+        } catch (std::exception& ex) {
+            std::cerr << "Error occured while progress bar: " << ex.what() << "\n";
+        }
+    }).detach();
 
     for (size_t i = 0; i < num_threads; i++) {
         workers.emplace_back([this, i, num_threads]{
@@ -201,7 +240,7 @@ void Plugin::work() {
             while (true) {
                 Addr address;
                 {
-                    std::unique_lock<std::mutex> lock(this->mutex);
+                    std::unique_lock<std::mutex> lock(this->data_mutex);
                     if (this->inputs.empty() || this->isStopAtomic->load())
                         return;
                 
@@ -222,38 +261,31 @@ void Plugin::work() {
                     for (const std::string_view login : this->logins) {
                         for (const std::string_view password : this->passwords) {
                             if (isStopAtomic->load()) return;
-                            std::cout << "[i] Trying combination for address [" << ip << ":" << port << "] " << login << "/" << password << "\n";
 
                             if (api->sendRequest(&__addr, &__proxy, __Creds{login.data(), password.data()})) {
-                                std::cout << "[+] Found creds for address [" << ip << ":" << port << "] " << login << "/" << password << "\n";
+                                this->valids++;
                                 Result output{address.ip, port, std::string(login), std::string(password)};
+                                std::lock_guard<std::mutex> l(file_mutex);
                                 results.emplace_back(output);
                                 printResult(output);
                                 return;
                             }
                         }
                     }
+                    this->invalids++;
                 }();
+                this->processed++;
             }
         });
     }
 }
 
 void Plugin::printResult(const Result& output) {
-    std::lock_guard<std::mutex> l(mutex);
-    std::ofstream file(outputPath / "output.txt", std::ios_base::out | std::ios_base::app);
-
-    if (!file.is_open()) {
-        // std::cerr << "Unable open file " << outputFile << std::endl;
-        return;
-    }
-
-    file << output.addr.ip << ':' << output.addr.port << ' ' << output.creds.login << ':' << output.creds.password << '\n';
+    output_file << output.addr.ip << ':' << output.addr.port << ' ' << output.creds.login << ':' << output.creds.password << std::endl;
 }
 
 std::string Plugin::getConfigs() const noexcept {
-    return std::format("Loaded data:\n"
-                       "Inputs: {}\n"
+    return std::format("Inputs: {}\n"
                        "Logins: {}\n"
                        "Passwords: {}\n"
                        "Proxies: {}\n",
