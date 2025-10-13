@@ -4,7 +4,7 @@
 
 namespace adapters::controllers::signal_handler {
 
-static std::function<bool()> handler_ = nullptr;
-bool setHandler(std::function<bool()> handler);
+static std::function<void()> handler_ = nullptr;
+bool setHandler(std::function<void()> handler);
 
-} // namespace adapters::controllers::signal_handler
+}  // namespace adapters::controllers::signal_handler

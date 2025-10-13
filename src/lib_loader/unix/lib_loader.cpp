@@ -2,6 +2,8 @@
 #include <dlfcn.h>
 #include <format>
 #include <stdexcept>
+#include <string>
+#include <memory>
 
 namespace lib_loader {
 
@@ -38,4 +40,5 @@ std::unique_ptr<Base> createLoader(const std::filesystem::path& path) {
     return std::make_unique<UnixLoader>(path);
 }
 
-} // namespace lib_loader
+}  // namespace lib_loader
+

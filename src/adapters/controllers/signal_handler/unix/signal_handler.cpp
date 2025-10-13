@@ -13,7 +13,7 @@ void internalHandler(int signal) {
     }
 }
 
-bool setHandler(std::function<bool()> handler) {
+bool setHandler(std::function<void()> handler) {
     handler_ = handler;
 
     struct sigaction sa{};

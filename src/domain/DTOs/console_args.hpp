@@ -9,8 +9,9 @@ struct ConsoleArgs {
     const std::filesystem::path loginsPath;
     const std::filesystem::path passwordsPath;
     const std::filesystem::path proxiesPath;
-    const std::string outputPath;
+    const std::filesystem::path outputPath;
+    size_t verboseCount;
     int threadsCount;
 };
 
-} // namespace domain::dtos
+}  // namespace domain::dtos

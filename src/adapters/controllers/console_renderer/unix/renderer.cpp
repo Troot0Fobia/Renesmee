@@ -50,4 +50,5 @@ std::unique_ptr<BaseRenderer> getRenderer() {
     return std::make_unique<Renderer>();
 }
 
-} // namespace adapters::controllers
+}  // namespace adapters::controllers
+

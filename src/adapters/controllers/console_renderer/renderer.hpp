@@ -55,13 +55,16 @@ public:
         std::stringstream ss;
         for (const std::string& data : screen)
             ss << data << "\n";
-        
+
         return ss.str();
     }
-    
+
     virtual void checkSize() = 0;
+
+    virtual ~BaseRenderer() = default;
 };
 
 std::unique_ptr<BaseRenderer> getRenderer();
-    
-} // namespace adapters::controllers
+
+}  // namespace adapters::controllers
+

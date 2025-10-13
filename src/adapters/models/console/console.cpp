@@ -1,12 +1,13 @@
 #include "console.hpp"
 #include "console_args.hpp"
 #include "filesystem_utils.hpp"
+#include <vector>
+#include <string>
 
 namespace adapters::console {
-    
+
 ConsoleParser::ConsoleParser(int argc, char** argv)
-    : options(argv[0], "Reborn Network Scanner")
-{
+    : options(argv[0], "Reborn Network Scanner") {
     options
         .set_width(120)
         .positional_help("<input_file.txt>")
@@ -21,11 +22,10 @@ ConsoleParser::ConsoleParser(int argc, char** argv)
         ("proxy", "File with proxies", cxxopts::value<std::string>(), "<file>")
         ("l,login", "File with usernames", cxxopts::value<std::string>(), "<file>")
         ("password", "File with passwords", cxxopts::value<std::string>(), "<file>")
-        ("t,threads", "Specify desired count of threads", cxxopts::value<int>()->default_value("100"), "<n>")
-        ;
+        ("v,verbose", "Verbose level")
+        ("t,threads", "Specify desired count of threads", cxxopts::value<int>()->default_value("100"), "<n>");
 
     options.parse_positional({"input"});
-
     result = options.parse(argc, argv);
 }
 
@@ -60,9 +60,10 @@ domain::dtos::ConsoleArgs ConsoleParser::getArgs() const {
         utils::resolvePath(result["login"].as<std::string>()),
         utils::resolvePath(result["password"].as<std::string>()),
         utils::resolvePath(result["proxy"].as<std::string>()),
-        result["output-dir"].as<std::string>(),
+        utils::createFolder(result["output-dir"].as<std::string>()),
+        result.count("verbose"),
         result["threads"].as<int>()
     };
 }
 
-} // namespace adapters::console
+}  // namespace adapters::console

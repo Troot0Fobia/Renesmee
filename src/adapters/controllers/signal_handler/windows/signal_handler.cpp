@@ -7,11 +7,13 @@ BOOL WINAPI internalHandler(DWORD dwCtrlType) {
     switch (dwCtrlType) {
     case CTRL_C_EVENT:
         if (handler_)
-            return handler_();
+            handler_();
+        return TRUE;
     }
+    return FALSE;
 }
 
-bool setHandler(std::function<bool()> handler) {
+bool setHandler(std::function<void()> handler) {
     handler_ = handler;
     return SetConsoleCtrlHandler(internalHandler, TRUE) ? TRUE : FALSE;
 }
