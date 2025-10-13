@@ -13,8 +13,8 @@ std::filesystem::path resolvePath(const std::string& path_str) {
         = std::filesystem::canonical(std::filesystem::path{path_str}, err_code);
     
     if (err_code)
-        throw std::filesystem::filesystem_error(
-            "Provided path {} does not exist", err_code
+        throw std::filesystem::filesystem_error(std::format(
+            "Provided path {} does not exist", path_str), err_code
         );
         
     return cannonical_path;
