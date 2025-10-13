@@ -4,7 +4,7 @@ set(CONTROLLERS_FOLDER ${CMAKE_CURRENT_LIST_DIR}/controllers)
 
 if(WIN32)
     set(SIGNAL_HANDLER_SOURCE_FILE ${CONTROLLERS_FOLDER}/signal_handler/windows/signal_handler.cpp)
-    set(RENDERER_SOURCE_FILE ${CONTROLLERS_FOLDER}/constollers/console_renderer/windows/renderer.cpp)
+    set(RENDERER_SOURCE_FILE ${CONTROLLERS_FOLDER}/console_renderer/windows/renderer.cpp)
 elseif(UNIX)
     set(SIGNAL_HANDLER_SOURCE_FILE ${CONTROLLERS_FOLDER}/signal_handler/unix/signal_handler.cpp)
     set(RENDERER_SOURCE_FILE ${CONTROLLERS_FOLDER}/console_renderer/unix/renderer.cpp)
