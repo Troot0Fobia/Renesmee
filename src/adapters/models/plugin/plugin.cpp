@@ -127,10 +127,10 @@ Plugin::parseAddr(const std::string& addr) {
     return std::make_pair(ip, port);
 }
 
-void Plugin::readData(std::vector<std::string> &v, const std::string &filePath) {
+void Plugin::readData(std::vector<std::string> &v, const std::filesystem::path &filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        throw std::runtime_error(std::format("Failed open file: {}", filePath));
+        throw std::runtime_error(std::format("Failed open file: {}", filePath.string()));
     }
 
     std::string s;
@@ -141,10 +141,10 @@ void Plugin::readData(std::vector<std::string> &v, const std::string &filePath) 
     }
 }
 
-void Plugin::readData(std::queue<Addr>& q, const std::string& filePath) {
+void Plugin::readData(std::queue<Addr>& q, const std::filesystem::path& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        throw std::runtime_error(std::format("Failed open file: {}", filePath));
+        throw std::runtime_error(std::format("Failed open file: {}", filePath.string()));
     }
 
     std::string s;
@@ -161,10 +161,10 @@ void Plugin::readData(std::queue<Addr>& q, const std::string& filePath) {
     }
 }
 
-void Plugin::readData(std::vector<Proxy>& v, const std::string& filePath) {
+void Plugin::readData(std::vector<Proxy>& v, const std::filesystem::path& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        throw std::runtime_error("Failed open file: " + filePath);
+        throw std::runtime_error("Failed open file: " + filePath.string());
     }
 
     std::string s;
@@ -200,7 +200,7 @@ void Plugin::readData(std::vector<Proxy>& v, const std::string& filePath) {
 
 void Plugin::work() {
     const size_t inputs_amount = inputs.size();
-    const size_t num_threads = std::min({
+    const size_t num_threads = std::min<size_t>({
                                     inputs_amount,
                                     proxies.size(),
                                     static_cast<size_t>(threads),
@@ -231,9 +231,14 @@ void Plugin::work() {
                 renderer->emplaceData(std::format(
                     "Goods: {}, Invalids: {}, Processed: {}",
                     valids, invalids, processed));
-                renderer->emplaceData(std::format(
-                    "[{:%T}]", std::chrono::duration_cast<std::chrono::seconds>(
-                        std::chrono::system_clock::now() - start)));
+                renderer->emplaceData(formatDuration(std::chrono::system_clock::now() - start));
+
+                // This code does not work on Windows. I don't know how to solve it.
+                // It loud on fmt string and cannot evaluate it with consteval.
+                // renderer->emplaceData(std::format(
+                //     "[{:%T}]", std::chrono::duration_cast<std::chrono::seconds>(
+                //         std::chrono::system_clock::now() - start)));
+
                 std::cout << renderer->Print() << std::flush;
                 renderer->eraseLines(3);
 
@@ -373,6 +378,15 @@ std::string Plugin::getConfigs() const noexcept {
                        "Proxies: {}\n",
                        inputs.size(), logins.size(),
                        passwords.size(), proxies.size());
+}
+
+template<typename Rep, typename Period>
+std::string Plugin::formatDuration(const std::chrono::duration<Rep, Period> duration_time) {
+    auto s = std::chrono::duration_cast<std::chrono::seconds>(duration_time).count();
+    int h = s / 3600;
+    int m = (s % 3600) / 60;
+    int sec = s % 60;
+    return std::format("[{:02}:{:02}:{:02}]", h, m, sec);
 }
 
 }  // namespace adapters::plugin

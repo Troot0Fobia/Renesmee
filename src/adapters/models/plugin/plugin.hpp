@@ -10,6 +10,7 @@
 #include "result.hpp"
 #include "renderer.hpp"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -54,14 +55,16 @@ class Plugin {
     unsigned short threads;
 
     std::optional<std::pair<std::string, unsigned short>> parseAddr(const std::string& addr);
-    void readData(std::vector<std::string> &v, const std::string &filePath);
-    void readData(std::queue<Addr>& q, const std::string& filePath);
-    void readData(std::vector<Proxy>& v, const std::string& filePath);
+    void readData(std::vector<std::string> &v, const std::filesystem::path& filePath);
+    void readData(std::queue<Addr>& q, const std::filesystem::path& filePath);
+    void readData(std::vector<Proxy>& v, const std::filesystem::path& filePath);
     static void logHandler(void* ctx, VerboseLogLevel level, const char* msg);
     static void printProcessedHandler(void* ctx, const __Addr* const addr, const char* status);
     std::string getConfigs() const noexcept;
     void printResult(const Result& output);
     void printProcessed(const __Addr* const addr, const char* status);
+    template<typename Rep, typename Period>
+    std::string formatDuration(const std::chrono::duration<Rep, Period> duration_time);
 
  public:
     explicit Plugin(
