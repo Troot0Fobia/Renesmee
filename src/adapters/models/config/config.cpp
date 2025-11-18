@@ -1,17 +1,16 @@
 #include "config.hpp"
+#include "filesystem_utils.hpp"
+#include "plugin_info.hpp"
+#include "toml.hpp"
+#include "toml11/find.hpp"
+#include "toml11/value.hpp"
+#include "version.hpp"
 #include <algorithm>
-#include <filesystem>
 #include <format>
 #include <regex>
 #include <stdexcept>
 #include <string>
 #include <utility>
-#include "plugin_info.hpp"
-#include "toml.hpp"
-#include "toml11/find.hpp"
-#include "toml11/value.hpp"
-#include "filesystem_utils.hpp"
-#include "version.hpp"
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
     #define DYNAMIC_LIB_EXTENSION ".dll"
@@ -31,21 +30,21 @@ std::optional<Version> parseVersion(const std::string& versionString) {
         t = std::stoi(match[1].str());
         if (t < 0 || t > 65535)
             return std::nullopt;
-        
+
         major = t;
         // major = static_cast<unsigned short>(t);
 
         t = std::stoi(match[2].str());
         if (t < 0 || t > 65535)
             return std::nullopt;
-        
+
         minor = t;
         // minor = static_cast<unsigned short>(t);
 
         t = std::stoi(match[3].str());
         if (t < 0 || t > 65535)
             return std::nullopt;
-        
+
         patch = t;
         // patch = static_cast<unsigned short>(t);
 
@@ -64,8 +63,7 @@ struct from<PluginInfo> {
         auto ver_opt = parseVersion(toml::find<std::string>(v, "version"));
         if (!ver_opt)
             throw std::runtime_error(
-                std::format("Error parse version for {} plugin", plugin_name)
-            );
+                std::format("Error parse version for {} plugin", plugin_name));
 
         return PluginInfo{
             plugin_name,
@@ -83,27 +81,28 @@ ConfigParser::ConfigParser(const std::string& configPath) {
     const std::filesystem::path cannonical_path = utils::resolvePath(configPath);
 
     auto res = toml::try_parse(cannonical_path);
-    
-    if (res.is_ok())
-        pluginsInfo = toml::find<std::vector<PluginInfo>>(std::move(res.unwrap()), "plugins");
-    else
+
+    if (res.is_ok()) {
+        pluginsInfo = toml::find<std::vector<PluginInfo>>(std::move(res.unwrap()),
+                                                          "plugins");
+    } else {
         throw std::runtime_error(
             std::format(
                 "TOML error parse file: {}",
-                res.unwrap_err().front().title()
-            )
-        );
+                res.unwrap_err().front().title()));
+    }
 }
 
 std::string ConfigParser::pluginInfo() const noexcept {
     std::stringstream ss;
+
     for (const auto& plugin : pluginsInfo) {
         ss << "Plugin name: " << plugin.name << "\n" <<
               "Plugin description: " << plugin.description << "\n" <<
               "Plugin path: " << plugin.path << "\n" <<
-              "Plugin version: " << plugin.version.getStringVersion() << "\n\n"
-              ;
+              "Plugin version: " << plugin.version.getStringVersion() << "\n\n";
     }
+
     return ss.str();
 }
 
@@ -113,8 +112,7 @@ ConfigParser::getPlugin(const std::string& pluginName) {
         pluginsInfo,
         [&pluginName](const PluginInfo& pluginInfo){
             return pluginInfo.name == pluginName;
-        }
-    );
+        });
 
     if (it != pluginsInfo.end()) {
         PluginInfo pluginInfo = std::move(*it);

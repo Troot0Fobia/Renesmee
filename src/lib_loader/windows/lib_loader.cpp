@@ -23,7 +23,9 @@ public:
         handler = LoadLibrary(path.string().c_str());
 
         if (!handler)
-            throw std::runtime_error(std::format("Failed to open dynamic library {}\n", path.string()));
+            throw std::runtime_error(std::format("Failed to open dynamic library {}. Error: {}\n",
+                                                 path.string(),
+                                                 GetLastError()));
     }
 
     ~WinLoader() override {
@@ -36,4 +38,5 @@ std::unique_ptr<Base> createLoader(const std::filesystem::path& path) {
     return std::make_unique<WinLoader>(path);
 }
 
-} // namespace lib_loader
+}  // namespace lib_loader
+

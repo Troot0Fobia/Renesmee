@@ -1,11 +1,13 @@
 #pragma once
 
 #include "plugin_info.hpp"
-
+#include "version.hpp"
 #include <optional>
+#include <string>
 #include <vector>
 
-using namespace domain::value_objects;
+using domain::value_objects::Version;
+using domain::value_objects::PluginInfo;
 
 namespace adapters::config {
 

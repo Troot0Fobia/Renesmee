@@ -2,6 +2,8 @@
 
 #include "console_args.hpp"
 #include "cxxopts.hpp"
+#include <string>
+#include <vector>
 
 namespace adapters::console {
 

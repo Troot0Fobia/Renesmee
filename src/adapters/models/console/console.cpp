@@ -1,20 +1,21 @@
 #include "console.hpp"
 #include "console_args.hpp"
 #include "filesystem_utils.hpp"
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace adapters::console {
 
 ConsoleParser::ConsoleParser(int argc, char** argv)
     : options(argv[0], "Reborn Network Scanner") {
+    // clang-format off
     options
         .set_width(120)
         .positional_help("<input_file.txt>")
         .custom_help("[options...]")
         .add_options()
         ("h,help", "Print help message")
-        ("config", "Provide path to plugins config file", cxxopts::value<std::string>(), "<file>")
+        ("config", "Provide path to plugin's config file", cxxopts::value<std::string>()->default_value("./configs/plugins.toml"), "<file>")
         ("show-plugins", "Print possible plugins with description", cxxopts::value<bool>())
         ("plugin", "Plugin for work", cxxopts::value<std::string>(), "<plugin_name>")
         ("input", "Input file with targets", cxxopts::value<std::string>())
@@ -22,8 +23,9 @@ ConsoleParser::ConsoleParser(int argc, char** argv)
         ("proxy", "File with proxies", cxxopts::value<std::string>(), "<file>")
         ("l,login", "File with usernames", cxxopts::value<std::string>(), "<file>")
         ("password", "File with passwords", cxxopts::value<std::string>(), "<file>")
-        ("v,verbose", "Verbose level")
+        ("v,verbose", "Verbose level. Max value -vvv")
         ("t,threads", "Specify desired count of threads", cxxopts::value<int>()->default_value("100"), "<n>");
+    // clang-format on
 
     options.parse_positional({"input"});
     result = options.parse(argc, argv);

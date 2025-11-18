@@ -1,3 +1,7 @@
+#include "config.hpp"
+#include "console.hpp"
+#include "plugin.hpp"
+#include "signal_handler.hpp"
 #include <atomic>
 #include <cstdlib>
 #include <exception>
@@ -5,15 +9,8 @@
 #include <string>
 #include <utility>
 
-#include "config.hpp"
-#include "console.hpp"
-#include "plugin.hpp"
-#include "plugin_info.hpp"
-#include "signal_handler.hpp"
-
 int main(int argc, char* argv[]) {
     std::atomic<bool> stop{false};
-    std::string configFile = "./configs/plugins.toml";
 
     if (!adapters::controllers::signal_handler::setHandler([&stop]() -> void {
         stop.store(true);
@@ -29,13 +26,8 @@ int main(int argc, char* argv[]) {
             return EXIT_SUCCESS;
         }
 
-        if (std::string configPath
-            = console_parser.getOption<std::string>("config");
-            !configPath.empty()) {
-            configFile = configPath;
-        }
-
-        adapters::config::ConfigParser config_parser(configFile);
+        adapters::config::ConfigParser config_parser(
+            console_parser.getOption<std::string>("config"));
 
         if (console_parser.hasOption("show-plugins")) {
             std::cout << config_parser.pluginInfo() << std::endl;
@@ -45,8 +37,9 @@ int main(int argc, char* argv[]) {
         if (auto missing = console_parser.checkRequired(); !missing.empty()) {
             std::cerr << "[ ERROR ] Required parameter was not specified:\n";
 
-            for (const auto& [argument, message] : missing)
+            for (const auto& [argument, message] : missing) {
                 std::cerr << argument << " : " << message << "\n";
+            }
             std::cerr << console_parser.help() << std::endl;
             return EXIT_FAILURE;
         }

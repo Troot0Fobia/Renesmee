@@ -1,16 +1,17 @@
 #include "plugin.hpp"
 #include "address.hpp"
 #include "api_DTOs.hpp"
-#include "lib_loader.hpp"
 #include "console_args.hpp"
 #include "filesystem_utils.hpp"
+#include "lib_loader.hpp"
 #include "plugin_api.hpp"
 #include "renderer.hpp"
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <exception>
-#include <filesystem>
 #include <format>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -21,8 +22,6 @@
 #include <thread>
 #include <utility>
 #include <vector>
-#include <fstream>
-#include <algorithm>
 
 namespace adapters::plugin {
 
@@ -59,8 +58,10 @@ Plugin::Plugin(std::atomic<bool>* isStopAtomic,
             processed_file_path.string()));
     }
 
-    loader = lib_loader::createLoader(utils::resolvePath(this->pluginInfo.path));
-    auto get_plugin_api = loader->getFunction<PluginAPI* (*)()>("get_plugin_api");
+    loader = lib_loader::createLoader(
+        utils::resolvePath(this->pluginInfo.path));
+    auto get_plugin_api =
+        loader->getFunction<PluginAPI* (*)()>("get_plugin_api");
     api = get_plugin_api();
 
     if (!api) {
@@ -69,19 +70,39 @@ Plugin::Plugin(std::atomic<bool>* isStopAtomic,
             this->pluginInfo.name));
     }
 
+    if (!api->initPlugin) {
+        throw std::runtime_error(
+            "Plugin's 'initPlugin' function does not specified");
+    }
+
+    if (!api->createSession) {
+        throw std::runtime_error(
+            "Plugin's 'createSession' function does not specified");
+    }
+
     if (!api->getVersion) {
         throw std::runtime_error(
             "Plugin's 'getVersion' function does not specified");
     }
 
-    if (!api->sendRequest) {
-        throw std::runtime_error(
-            "Plugin's 'sendRequest' function does not specified");
-    }
-
     if (!api->validateAddr) {
         throw std::runtime_error(
             "Plugin's 'validateAddr' function does not specified");
+    }
+
+    if (!api->checkCreds) {
+        throw std::runtime_error(
+            "Plugin's 'checkCreds' function does not specified");
+    }
+
+    if (!api->shutdownPlugin) {
+        throw std::runtime_error(
+            "Plugin's 'shutdownPlugin' function does not specified");
+    }
+
+    if (api->initPlugin() == -1) {
+        throw std::runtime_error(
+            "Failed initialize plugin");
     }
 
     renderer = adapters::controllers::getRenderer();
@@ -127,10 +148,12 @@ Plugin::parseAddr(const std::string& addr) {
     return std::make_pair(ip, port);
 }
 
-void Plugin::readData(std::vector<std::string> &v, const std::filesystem::path &filePath) {
+void Plugin::readData(std::vector<std::string> &v,
+                      const std::filesystem::path &filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        throw std::runtime_error(std::format("Failed open file: {}", filePath.string()));
+        throw std::runtime_error(
+            std::format("Failed open file: {}", filePath.string()));
     }
 
     std::string s;
@@ -141,10 +164,12 @@ void Plugin::readData(std::vector<std::string> &v, const std::filesystem::path &
     }
 }
 
-void Plugin::readData(std::queue<Addr>& q, const std::filesystem::path& filePath) {
+void Plugin::readData(std::queue<Addr>& q,
+                      const std::filesystem::path& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        throw std::runtime_error(std::format("Failed open file: {}", filePath.string()));
+        throw std::runtime_error(
+            std::format("Failed open file: {}", filePath.string()));
     }
 
     std::string s;
@@ -161,7 +186,8 @@ void Plugin::readData(std::queue<Addr>& q, const std::filesystem::path& filePath
     }
 }
 
-void Plugin::readData(std::vector<Proxy>& v, const std::filesystem::path& filePath) {
+void Plugin::readData(std::vector<Proxy>& v,
+                      const std::filesystem::path& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
         throw std::runtime_error("Failed open file: " + filePath.string());
@@ -208,8 +234,9 @@ void Plugin::work() {
     workers.reserve(num_threads);
     logger.info(std::format("Threads amount: {}", num_threads));
 
-    renderer_thread = std::jthread([this, num_threads, inputs_amount]() -> void {
-        renderer->emplaceData(std::format(
+    renderer_thread = std::jthread(
+        [this, num_threads, inputs_amount]() -> void {
+            renderer->emplaceData(std::format(
                               "You are using {} plugin. Version: {}\n"
                               "Loaded data:\n{}"
                               "Threads: {}\n",
@@ -227,16 +254,20 @@ void Plugin::work() {
                                valids = this->valids,
                                invalids = this->invalids;
 
-                renderer->progressBar(static_cast<float>(processed) / static_cast<float>(inputs_amount));
+                renderer->progressBar(static_cast<float>(processed) /
+                                      static_cast<float>(inputs_amount));
                 renderer->emplaceData(std::format(
                     "Goods: {}, Invalids: {}, Processed: {}",
                     valids, invalids, processed));
-                renderer->emplaceData(formatDuration(std::chrono::system_clock::now() - start));
+                renderer->emplaceData(
+                    formatDuration(std::chrono::system_clock::now() - start));
 
-                // This code does not work on Windows. I don't know how to solve it.
+                // This code does not work on Windows.
+                // I don't know how to solve it.
                 // It loud on fmt string and cannot evaluate it with consteval.
                 // renderer->emplaceData(std::format(
-                //     "[{:%T}]", std::chrono::duration_cast<std::chrono::seconds>(
+                //     "[{:%T}]",
+                //     std::chrono::duration_cast<std::chrono::seconds>(
                 //         std::chrono::system_clock::now() - start)));
 
                 std::cout << renderer->Print() << std::flush;
@@ -258,6 +289,11 @@ void Plugin::work() {
             try {
                 const __Proxy __proxy =
                     this->proxies.at(i % num_threads).to_c_struct();
+                const void *const session = api->createSession(&__proxy);
+                if (!session) {
+                    this->logger.error("Failed init session");
+                    return;
+                }
 
                 while (true) {
                     Addr address;
@@ -285,7 +321,10 @@ void Plugin::work() {
                         continue;
                     }
 
-                    if (!api->validateAddr(&__addr, this, logHandler)) {
+                    if (!api->validateAddr(session,
+                                           &__addr,
+                                           this,
+                                           logHandler)) {
                         printProcessed(&__addr, "invalid_addr");
                         this->invalids++;
                         this->processed++;
@@ -301,13 +340,12 @@ void Plugin::work() {
                                     "Trying combination {}:{} for address {}:{}",
                                     login, password, ip, port));
 
-                                int response = api->sendRequest(&__addr,
-                                                                &__proxy,
-                                                                __Creds{login.data(),
-                                                                        password.data()},
-                                                                this,
-                                                                logHandler,
-                                                                printProcessedHandler);
+                                int response = api->checkCreds(session,
+                                                               __Creds{login.data(),
+                                                                       password.data()},
+                                                               this,
+                                                               logHandler,
+                                                               printProcessedHandler);
 
                                 if (response == 0) {
                                     continue;
@@ -333,6 +371,8 @@ void Plugin::work() {
                     }();
                     this->processed++;
                 }
+
+                api->closeSession(session);
             } catch (const std::exception& ex) {
                 logger.error(std::format("Error occured in thread: {}",
                                          ex.what()));
@@ -342,16 +382,20 @@ void Plugin::work() {
     }
 }
 
-void Plugin::logHandler(void* ctx, VerboseLogLevel level, const char* msg) {
+void Plugin::logHandler(void* ctx, PluginLogLevel level, const char* msg) {
     auto self = static_cast<Plugin*>(ctx);
-    if (level == VerboseLogLevel::DEBUG) {
+    if (level == PluginLogLevel::DEBUG) {
         self->logger.debug(msg);
-    } else if (level == VerboseLogLevel::VERBOSE) {
+    } else if (level == PluginLogLevel::VERBOSE) {
         self->logger.verbose(msg);
+    } else if (level == PluginLogLevel::ERROR) {
+        self->logger.error(msg);
     }
 }
 
-void Plugin::printProcessedHandler(void* ctx, const __Addr* addr, const char* status) {
+void Plugin::printProcessedHandler(void* ctx,
+                                   const __Addr* addr,
+                                   const char* status) {
     auto self = static_cast<Plugin*>(ctx);
     self->printProcessed(addr, status);
 }
@@ -381,12 +425,19 @@ std::string Plugin::getConfigs() const noexcept {
 }
 
 template<typename Rep, typename Period>
-std::string Plugin::formatDuration(const std::chrono::duration<Rep, Period> duration_time) {
-    auto s = std::chrono::duration_cast<std::chrono::seconds>(duration_time).count();
+std::string Plugin::formatDuration(
+    const std::chrono::duration<Rep, Period> duration_time) {
+    auto s =
+        std::chrono::duration_cast<std::chrono::seconds>(duration_time).count();
     int h = s / 3600;
     int m = (s % 3600) / 60;
     int sec = s % 60;
     return std::format("[{:02}:{:02}:{:02}]", h, m, sec);
+}
+
+Plugin::~Plugin() {
+    if (api && api->shutdownPlugin)
+        api->shutdownPlugin();
 }
 
 }  // namespace adapters::plugin
