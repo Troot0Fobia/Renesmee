@@ -321,19 +321,25 @@ void Plugin::work() {
                         continue;
                     }
 
-                    if (!api->validateAddr(session,
-                                           &__addr,
-                                           this,
-                                           logHandler)) {
+                    int validate_res = api->validateAddr(session,
+                                                         &__addr,
+                                                         this,
+                                                         logHandler);
+                    if (validate_res == 0) {
                         printProcessed(&__addr, "invalid_addr");
                         this->invalids++;
                         this->processed++;
+                        continue;
+                    } else if (validate_res == -2) {
+                        std::unique_lock<std::mutex> l(this->data_mutex);
+                        this->inputs.emplace(Addr(__addr.ip, __addr.port));
                         continue;
                     }
 
                     [&]() -> void {
                         for (const std::string_view login : this->logins) {
-                            for (const std::string_view password : this->passwords) {
+                            for (const std::string_view password :
+                                 this->passwords) {
                                 if (isStopAtomic->load()) return;
 
                                 logger.verbose(std::format(
@@ -352,7 +358,8 @@ void Plugin::work() {
                                 } else if (response == 1) {
                                     this->valids++;
                                     logger.info(std::format(
-                                        "Found valid combination {}:{} for address {}:{}",
+                                        "Found valid combination {}:{} "
+                                        "for address {}:{}",
                                         login, password, ip, port));
                                     printResult({
                                         address.ip,
@@ -362,6 +369,15 @@ void Plugin::work() {
                                     return;
                                 } else if (response == -1) {
                                     this->invalids++;
+                                    return;
+                                } else if (response == -2) {
+                                    std::unique_lock<std::mutex> l(
+                                        this->data_mutex);
+                                    this->inputs.emplace(Addr(__addr.ip,
+                                                              __addr.port));
+                                    if (this->processed) {
+                                        this->processed--;
+                                    }
                                     return;
                                 }
                             }
