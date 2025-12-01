@@ -164,7 +164,7 @@ void Plugin::readData(std::vector<std::string> &v,
     }
 }
 
-void Plugin::readData(std::queue<Addr>& q,
+void Plugin::readData(std::queue<BruteEntity>& q,
                       const std::filesystem::path& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
@@ -182,7 +182,7 @@ void Plugin::readData(std::queue<Addr>& q,
             continue;
         }
 
-        q.emplace(res->first, res->second);
+        q.emplace(Addr{res->first, res->second}, 0, 0);
     }
 }
 
@@ -296,20 +296,20 @@ void Plugin::work() {
                 }
 
                 while (true) {
-                    Addr address;
+                    BruteEntity brute_entity;
                     {
                         std::unique_lock<std::mutex> l(this->data_mutex);
                         if (this->inputs.empty() || this->isStopAtomic->load())
                             break;
 
-                        address = std::move(this->inputs.front());
+                        brute_entity = std::move(this->inputs.front());
                         this->inputs.pop();
                     }
 
-                    std::string_view ip{address.ip};
-                    unsigned short port{address.port};
+                    std::string_view ip{brute_entity.address.ip};
+                    unsigned short port{brute_entity.address.port};
 
-                    const __Addr __addr{ip.data(), address.port};
+                    const __Addr __addr{ip.data(), port};
 
                     // temp solution without SYN port scan // TODO somewhen
                     if (port == 0) {
@@ -332,15 +332,26 @@ void Plugin::work() {
                         continue;
                     } else if (validate_res == -2) {
                         std::unique_lock<std::mutex> l(this->data_mutex);
-                        this->inputs.emplace(Addr(__addr.ip, __addr.port));
+                        this->inputs.emplace(std::move(brute_entity));
                         continue;
                     }
 
                     [&]() -> void {
-                        for (const std::string_view login : this->logins) {
-                            for (const std::string_view password :
-                                 this->passwords) {
-                                if (isStopAtomic->load()) return;
+                        for (size_t login_pos = brute_entity.login_pos;
+                             login_pos < this->logins.size(); login_pos++) {
+                            brute_entity.login_pos = login_pos;
+                            const std::string_view login{
+                                this->logins[login_pos]};
+                            for (size_t password_pos =
+                                     brute_entity.password_pos;
+                                 password_pos < this->passwords.size();
+                                 password_pos++) {
+                                brute_entity.password_pos = password_pos;
+                                const std::string_view password{
+                                    this->passwords[password_pos]};
+                                if (isStopAtomic->load()) {
+                                    return;
+                                }
 
                                 logger.verbose(std::format(
                                     "Trying combination {}:{} for address {}:{}",
@@ -362,7 +373,7 @@ void Plugin::work() {
                                         "for address {}:{}",
                                         login, password, ip, port));
                                     printResult({
-                                        address.ip,
+                                        brute_entity.address.ip,
                                         port,
                                         std::string(login),
                                         std::string(password)});
@@ -373,8 +384,8 @@ void Plugin::work() {
                                 } else if (response == -2) {
                                     std::unique_lock<std::mutex> l(
                                         this->data_mutex);
-                                    this->inputs.emplace(Addr(__addr.ip,
-                                                              __addr.port));
+                                    this->inputs.emplace(
+                                        std::move(brute_entity));
                                     if (this->processed) {
                                         this->processed--;
                                     }

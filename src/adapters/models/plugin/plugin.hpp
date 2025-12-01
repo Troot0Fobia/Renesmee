@@ -1,6 +1,7 @@
 #pragma once
 
 #include "address.hpp"
+#include "brute_entity.hpp"
 #include "console_args.hpp"
 #include "lib_loader.hpp"
 #include "logger.hpp"
@@ -27,6 +28,7 @@ using domain::value_objects::PluginInfo;
 using domain::value_objects::Addr;
 using domain::value_objects::Proxy;
 using domain::value_objects::Result;
+using domain::value_objects::BruteEntity;
 
 class Plugin {
     PluginInfo pluginInfo;
@@ -45,7 +47,7 @@ class Plugin {
 
     std::vector<std::string> logins;
     std::vector<std::string> passwords;
-    std::queue<Addr> inputs;
+    std::queue<BruteEntity> inputs;
     std::vector<Proxy> proxies;
     std::filesystem::path outputPath;
     std::unique_ptr<controllers::BaseRenderer> renderer;
@@ -59,7 +61,8 @@ class Plugin {
     parseAddr(const std::string& addr);
     void readData(std::vector<std::string> &v,
                   const std::filesystem::path& filePath);
-    void readData(std::queue<Addr>& q, const std::filesystem::path& filePath);
+    void readData(std::queue<BruteEntity>& q,
+                  const std::filesystem::path& filePath);
     void readData(std::vector<Proxy>& v, const std::filesystem::path& filePath);
     static void logHandler(void* ctx, PluginLogLevel level, const char* msg);
     static void printProcessedHandler(void* ctx,
