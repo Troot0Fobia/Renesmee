@@ -392,6 +392,7 @@ void Plugin::work() {
                                     return;
                                 }
                             }
+                            brute_entity.password_pos = 0;
                         }
                         this->invalids++;
                         printProcessed(&__addr, "no_pass");
