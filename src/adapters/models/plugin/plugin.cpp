@@ -80,6 +80,11 @@ Plugin::Plugin(std::atomic<bool>* isStopAtomic,
             "Plugin's 'createSession' function does not specified");
     }
 
+    if (!api->changeSessionState) {
+        throw std::runtime_error(
+            "Plugin's 'changeSessionState' function does not specified");
+    }
+
     if (!api->getVersion) {
         throw std::runtime_error(
             "Plugin's 'getVersion' function does not specified");
@@ -182,7 +187,7 @@ void Plugin::readData(std::queue<BruteEntity>& q,
             continue;
         }
 
-        q.emplace(Addr{res->first, res->second}, 0, 0);
+        q.emplace(Addr{res->first, res->second}, 0, 0, INTERFACE_TYPE_UNKNOWN);
     }
 }
 
@@ -321,19 +326,27 @@ void Plugin::work() {
                         continue;
                     }
 
-                    int validate_res = api->validateAddr(session,
-                                                         &__addr,
-                                                         this,
-                                                         logHandler);
-                    if (validate_res == 0) {
-                        printProcessed(&__addr, "invalid_addr");
-                        this->invalids++;
-                        this->processed++;
-                        continue;
-                    } else if (validate_res == -2) {
-                        std::unique_lock<std::mutex> l(this->data_mutex);
-                        this->inputs.emplace(std::move(brute_entity));
-                        continue;
+                    if (brute_entity.interface_type == INTERFACE_TYPE_UNKNOWN) {
+                        int validate_res = api->validateAddr(session,
+                                                             &__addr,
+                                                             this,
+                                                             logHandler);
+                        if (validate_res == 0) {
+                            printProcessed(&__addr, "invalid_addr");
+                            this->invalids++;
+                            this->processed++;
+                            continue;
+                        } else if (validate_res == -2) {
+                            std::unique_lock<std::mutex> l(this->data_mutex);
+                            this->inputs.emplace(std::move(brute_entity));
+                            continue;
+                        }
+
+                        brute_entity.interface_type = validate_res;
+                    } else {
+                        api->changeSessionState(session,
+                                                "interface_type",
+                                                brute_entity.interface_type);
                     }
 
                     [&]() -> void {
@@ -390,6 +403,8 @@ void Plugin::work() {
                                         this->processed--;
                                     }
                                     return;
+                                } else if (response == -3) {
+                                    break;
                                 }
                             }
                             brute_entity.password_pos = 0;
